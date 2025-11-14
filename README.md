@@ -1,7 +1,7 @@
 # 🎯 Curriculum Analyzer API
 
 > **Sistema Inteligente de Análise de Currículos para TechMatch**  
-> Desenvolvido especialmente para **Fabio** - Automatize a análise de currículos com OCR + LLM!
+Automatize a análise de currículos com OCR + LLM!
 
 ## 🌟 Visão Geral
 
