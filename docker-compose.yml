@@ -1,0 +1,104 @@
+# Docker Compose para Curriculum Analyzer
+# Sistema completo: API + MongoDB para análise inteligente de currículos
+
+version: '3.8'
+
+services:
+  # Aplicação Principal - Curriculum Analyzer API
+  curriculum-analyzer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: curriculum-analyzer-api
+    ports:
+      - "8000:8000"
+    environment:
+      # Configurações da aplicação
+      - HOST=0.0.0.0
+      - PORT=8000
+      - TESSERACT_PATH=/usr/bin/tesseract
+      
+      # Configurações do MongoDB
+      - MONGODB_CONNECTION_STRING=mongodb://mongodb:27017
+      - MONGODB_DATABASE=curriculum_analyzer
+      
+      # Configurações de produção
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+    volumes:
+      # Volume para logs (opcional)
+      - ./logs:/app/logs
+      # Volume para dados temporários
+      - curriculum_temp_data:/tmp/uploads
+    depends_on:
+      - mongodb
+    restart: unless-stopped
+    networks:
+      - curriculum_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Banco de Dados MongoDB
+  mongodb:
+    image: mongo:7.0
+    container_name: curriculum-analyzer-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      # Configurações básicas (sem autenticação para simplicidade)
+      - MONGO_INITDB_DATABASE=curriculum_analyzer
+    volumes:
+      # Persistência de dados
+      - mongodb_data:/data/db
+      # Scripts de inicialização (opcional)
+      - ./scripts/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    restart: unless-stopped
+    networks:
+      - curriculum_network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # MongoDB Express - Interface Web (Opcional - apenas para desenvolvimento)
+  mongo-express:
+    image: mongo-express:1.0.0
+    container_name: curriculum-analyzer-mongo-express
+    ports:
+      - "8081:8081"
+    environment:
+      - ME_CONFIG_MONGODB_SERVER=mongodb
+      - ME_CONFIG_MONGODB_PORT=27017
+      - ME_CONFIG_BASICAUTH_USERNAME=admin
+      - ME_CONFIG_BASICAUTH_PASSWORD=curriculum123
+      - ME_CONFIG_MONGODB_ENABLE_ADMIN=true
+    depends_on:
+      - mongodb
+    restart: unless-stopped
+    networks:
+      - curriculum_network
+    profiles:
+      - dev  # Apenas ativo no profile de desenvolvimento
+
+# Volumes para persistência
+volumes:
+  mongodb_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data/mongodb
+  curriculum_temp_data:
+    driver: local
+
+# Rede personalizada
+networks:
+  curriculum_network:
+    driver: bridge
+    name: curriculum-analyzer-network
